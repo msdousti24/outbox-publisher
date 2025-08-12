@@ -7,6 +7,6 @@ import org.springframework.stereotype.Service
 class KafkaPublisher {
     fun publish(message: OutboxMessage) {
         // Simulate blocking delay in Kafka publication
-        Thread.sleep(10)
+        Thread.sleep(1)
     }
 }

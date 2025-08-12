@@ -42,6 +42,7 @@ To run the application:
 2. Populate the DB:
     ```bash
     psql -h localhost -p 54320 -U postgres <<EOF
+    truncate outbox;
     insert into outbox(grouping_key) select i::text from generate_series(1,1_000_000) as i;
     analyze outbox;
     EOF
@@ -58,9 +59,9 @@ To run the application:
 
 The application can be configured through `application.yaml`. Key configuration properties:
 
-- `outbox.parallelism`: Number of parallel threads for processing messages (default: 10)
-- `outbox.batch-size`: Number of messages to process in each batch (default: 100)
-- `outbox.fixed-delay-ms`: Delay between processing batches in milliseconds (default: 1000)
+- `outpost.enabled`: Enable/disable the background scheduler loop (default: true)
+- `outpost.parallelism`: Number of parallel threads for processing messages (default: 10)
+- `outpost.batch-size`: Number of messages to process in each batch (default: 100)
 
 ## Running Tests
 
@@ -83,9 +84,13 @@ Or using your IDE's test runner.
 
 ## Project Structure
 
-- `src/main/java/io/msdousti/outpost/service/ScheduledOutboxPublication.kt`: Core service that implements the outbox
-  pattern
-- `src/main/java/io/msdousti/outpost/service/KafkaPublisher.kt`: Service for publishing messages to Kafka
-- `src/main/java/io/msdousti/outpost/repo/OutboxRepository.kt`: Repository for accessing the outbox table
+- `src/main/kotlin/io/msdousti/outpost/Application.kt`: Spring Boot application entry point
+- `src/main/kotlin/io/msdousti/outpost/service/OutboxPublisherService.kt`: Core service that implements the outbox pattern
+- `src/main/kotlin/io/msdousti/outpost/service/KafkaPublisher.kt`: Service for publishing messages to Kafka
+- `src/main/kotlin/io/msdousti/outpost/repo/OutboxRepository.kt`: Repository for accessing the outbox table
+- `src/main/kotlin/io/msdousti/outpost/repo/AdvisoryLockRepository.kt`: Helper for PostgreSQL advisory locks
+- `src/main/kotlin/io/msdousti/outpost/scheduler/OutpostScheduler.kt`: Background scheduler that triggers publishing
+- `src/main/kotlin/io/msdousti/outpost/scheduler/ExecutorConfig.kt`: Thread pool executors configuration
+- `src/main/kotlin/io/msdousti/outpost/config/SchedulingConfig.kt`: Enables scheduling outside of test profile
 - `docker/docker-compose.yaml`: Docker Compose configuration for PostgreSQL
 - `docker/init.sql`: SQL script to initialize the outbox table structure

@@ -8,6 +8,7 @@ logging:
     org.jooq: debug
     org.jooq.Constants: off
 
-outbox:
+outpost:
+  enabled: true
   parallelism: 10
   batch-size: 100

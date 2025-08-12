@@ -18,10 +18,13 @@ import io.mockk.verifyOrder
 import io.msdousti.outpost.repo.AdvisoryLockRepository
 import io.msdousti.outpost.repo.OutboxMessage
 import io.msdousti.outpost.repo.OutboxRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.jooq.DSLContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -39,11 +42,12 @@ private const val PARALLELISM = 4
 @ActiveProfiles("test")
 @SpringBootTest(
     properties = [
-        "outbox.batch-size = $BATCH_SIZE",
-        "outbox.parallelism = $PARALLELISM"
+        "outpost.batch-size = $BATCH_SIZE",
+        "outpost.parallelism = $PARALLELISM",
+        "outpost.enabled = false"
     ]
 )
-class ScheduledOutboxPublicationIT {
+class OutboxPublisherServiceIT {
 
     @TestConfiguration
     class CoroutineScopeTestConfig {
@@ -64,7 +68,7 @@ class ScheduledOutboxPublicationIT {
     lateinit var outboxRepository: OutboxRepository
 
     @Autowired
-    lateinit var service: ScheduledOutboxPublication
+    lateinit var service: OutboxPublisherService
 
     @Autowired
     lateinit var testScope: TestScope
@@ -77,7 +81,7 @@ class ScheduledOutboxPublicationIT {
     }
 
     @Test
-    fun `does nothing when advisory lock is held in another session`() {
+    fun `does nothing when advisory lock is held in another session`() = runTest {
         insertMessages(1, 1)
 
         AdvisoryLockRepository(dataSource.connection).use { advisoryLockRepository ->
@@ -93,7 +97,7 @@ class ScheduledOutboxPublicationIT {
     }
 
     @Test
-    fun `publishes and marks processed when lock is free`() {
+    fun `publishes and marks processed when lock is free`() = runTest {
         insertMessages(1, 10 * BATCH_SIZE)
 
         repeat(BATCH_SIZE / 10) {
@@ -113,7 +117,7 @@ class ScheduledOutboxPublicationIT {
     }
 
     @Test
-    fun `groups messages with the same grouping_key`() {
+    fun `groups messages with the same grouping_key`() = runTest {
         repeat(2) { insertMessages(1, BATCH_SIZE / 2) }
         repeat(2) { insertMessages(BATCH_SIZE / 2 + 1, BATCH_SIZE) }
 
@@ -156,12 +160,13 @@ class ScheduledOutboxPublicationIT {
         dslContext.execute("INSERT INTO outbox(grouping_key) SELECT i::text FROM generate_series($start, $end) AS i")
     }
 
-    private fun publishOutboxAndReturnCountProcessed(): Int {
+    private suspend fun publishOutboxAndReturnCountProcessed(): Int {
         service.publishOutboxMessages()
         testScope.advanceUntilIdle()
-
-        return dslContext.fetchSingle(
-            "SELECT COUNT(*) FROM outbox WHERE processed_at IS NOT NULL"
-        ).into(Int::class.java)
+        return withContext(Dispatchers.IO) {
+            dslContext.fetchSingle(
+                "SELECT COUNT(*) FROM outbox WHERE processed_at IS NOT NULL"
+            )
+        }.into(Int::class.java)
     }
 }
