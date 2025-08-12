@@ -8,9 +8,10 @@ create table if not exists outbox
 create table if not exists outbox_unpublished partition of outbox for values in (null) with
 (
     autovacuum_vacuum_scale_factor = 0,
-    autovacuum_analyze_threshold = 10000,
-    vacuum_truncate = false,
-    toast.vacuum_truncate = false
+    autovacuum_vacuum_threshold = 10000
+    -- Do we need these?
+    -- ,vacuum_truncate = false
+    -- ,toast.vacuum_truncate = false
 );
 
 create table if not exists outbox_published partition of outbox default with
