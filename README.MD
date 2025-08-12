@@ -8,9 +8,13 @@ ensures high performance by incorporating Kotlin coroutines, Postgres partitioni
 😎 Outpost has some cool features 😎
 
 * It uses session-level advisory locks, as opposed to transaction-level advisory locks
-* It does not define any transaction boundaries explicitly. Each SQL statement is run in its implicit transactions.
-* As such, no open transactions while doing network I/O (= publish to Kafka)
-* It is compatible with partitioned outboxes (published/unpublished). See my blog posts: 
+    * Therefore, it does not define any transaction boundaries explicitly. Each SQL statement is run in its implicit
+      transactions.
+    * Hence, no open transactions while doing network I/O (= publish to Kafka)
+* It allows for grouping messages based on a `groupingKey`. Messages with the same `groupingKey` are published in order,
+  while messages with different grouping keys are published in parallel. Parallelism is adjustable.
+* Adaptive scheduling: Increase or decrease the delay between each publication depending on the result of the last round
+* It is compatible with partitioned outboxes (published/unpublished). See my blog posts:
     * [PostgreSQL + Outbox Pattern Revamped — Part 1](https://dev.to/msdousti/postgresql-outbox-pattern-revamped-part-1-3lai)
     * [PostgreSQL + Outbox Pattern Revamped — Part 2](https://dev.to/msdousti/postgresql-outbox-pattern-revamped-part-2-1cbf)
 
