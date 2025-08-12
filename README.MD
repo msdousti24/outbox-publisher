@@ -5,6 +5,15 @@
 Outpost is a Spring Boot application that implements the outbox pattern for reliable message publishing to Kafka. It
 ensures high performance by incorporating Kotlin coroutines, Postgres partitioning, and general best practices.
 
+😎 Outpost has some cool features 😎
+
+* It uses session-level advisory locks, as opposed to transaction-level advisory locks
+* It does not define any transaction boundaries explicitly. Each SQL statement is run in its implicit transactions.
+* As such, no open transactions while doing network I/O (= publish to Kafka)
+* It is compatible with partitioned outboxes (published/unpublished). See my blog posts: 
+    * [PostgreSQL + Outbox Pattern Revamped — Part 1](https://dev.to/msdousti/postgresql-outbox-pattern-revamped-part-1-3lai)
+    * [PostgreSQL + Outbox Pattern Revamped — Part 2](https://dev.to/msdousti/postgresql-outbox-pattern-revamped-part-2-1cbf)
+
 ## Project Overview
 
 The project uses the following technologies:
@@ -85,7 +94,8 @@ Or using your IDE's test runner.
 ## Project Structure
 
 - `src/main/kotlin/io/msdousti/outpost/Application.kt`: Spring Boot application entry point
-- `src/main/kotlin/io/msdousti/outpost/service/OutboxPublisherService.kt`: Core service that implements the outbox pattern
+- `src/main/kotlin/io/msdousti/outpost/service/OutboxPublisherService.kt`: Core service that implements the outbox
+  pattern
 - `src/main/kotlin/io/msdousti/outpost/service/KafkaPublisher.kt`: Service for publishing messages to Kafka
 - `src/main/kotlin/io/msdousti/outpost/repo/OutboxRepository.kt`: Repository for accessing the outbox table
 - `src/main/kotlin/io/msdousti/outpost/repo/AdvisoryLockRepository.kt`: Helper for PostgreSQL advisory locks
