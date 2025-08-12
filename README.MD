@@ -105,6 +105,5 @@ Or using your IDE's test runner.
 - `src/main/kotlin/io/msdousti/outpost/repo/AdvisoryLockRepository.kt`: Helper for PostgreSQL advisory locks
 - `src/main/kotlin/io/msdousti/outpost/scheduler/OutpostScheduler.kt`: Background scheduler that triggers publishing
 - `src/main/kotlin/io/msdousti/outpost/scheduler/ExecutorConfig.kt`: Thread pool executors configuration
-- `src/main/kotlin/io/msdousti/outpost/config/SchedulingConfig.kt`: Enables scheduling outside of test profile
 - `docker/docker-compose.yaml`: Docker Compose configuration for PostgreSQL
 - `docker/init.sql`: SQL script to initialize the outbox table structure
