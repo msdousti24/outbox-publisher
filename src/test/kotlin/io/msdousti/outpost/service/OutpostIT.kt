@@ -15,9 +15,10 @@ import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
 import io.mockk.verifyOrder
-import io.msdousti.outpost.repo.AdvisoryLockRepository
+import io.msdousti.outpost.repo.AdvisoryLockService
 import io.msdousti.outpost.repo.OutboxMessage
 import io.msdousti.outpost.repo.OutboxRepository
+import io.msdousti.outpost.scheduler.OUTBOX_LOCK_ID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -33,7 +34,6 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.test.context.ActiveProfiles
-import javax.sql.DataSource
 
 private const val BATCH_SIZE = 100
 private const val PARALLELISM = 4
@@ -56,7 +56,7 @@ class OutboxPublisherServiceIT {
     }
 
     @Autowired
-    lateinit var dataSource: DataSource
+    lateinit var advisoryLockService: AdvisoryLockService
 
     @Autowired
     lateinit var dslContext: DSLContext
@@ -84,16 +84,11 @@ class OutboxPublisherServiceIT {
     fun `does nothing when advisory lock is held in another session`() = runTest {
         insertMessages(1, 1)
 
-        AdvisoryLockRepository(dataSource.connection).use { advisoryLockRepository ->
-            if (!advisoryLockRepository.tryAdvisorySessionLock(OUTBOX_LOCK_ID))
-                throw IllegalStateException("advisory lock cannot be acquired")
-
-            runCatching {
-                publishOutboxAndReturnCountProcessed() shouldBe 0
+        advisoryLockService.wrapInSessionLock(OUTBOX_LOCK_ID) {
+            advisoryLockService.wrapInSessionLock(OUTBOX_LOCK_ID) {
+                publishOutboxAndReturnCountProcessed() > 0
             }
-
-            advisoryLockRepository.unlockAdvisorySessionLock(OUTBOX_LOCK_ID)
-        }
+        } shouldBe false
     }
 
     @Test

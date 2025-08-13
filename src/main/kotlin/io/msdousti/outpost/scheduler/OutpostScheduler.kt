@@ -1,5 +1,6 @@
 package io.msdousti.outpost.scheduler
 
+import io.msdousti.outpost.repo.AdvisoryLockService
 import io.msdousti.outpost.service.OutboxPublisherService
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.CancellationException
@@ -22,10 +23,13 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
+const val OUTBOX_LOCK_ID: Long = 0x5A6BF480DC06A98C
+
 @ConditionalOnProperty(name = ["outpost.enabled"], havingValue = "true", matchIfMissing = true)
 @Component
 class OutpostScheduler(
     private val publisherService: OutboxPublisherService,
+    private val advisoryLockService: AdvisoryLockService,
     schedulerExecutor: ThreadPoolTaskExecutor,
     outpostExecutor: ThreadPoolTaskExecutor,
 ) : ApplicationRunner {
@@ -35,41 +39,43 @@ class OutpostScheduler(
     private val schedulerScope = CoroutineScope(schedulerExecutor.asCoroutineDispatcher()) + SupervisorJob()
     private val outpostContext = outpostExecutor.asCoroutineDispatcher() + SupervisorJob()
 
+    @Volatile
+    private var backoffMs = 0L
+
     @PreDestroy
     fun stopScheduler() {
-        logger.info("Stopping scheduler")
+        logger.debug("Stopping scheduler")
         schedulerScope.cancel()
     }
 
     override fun run(args: ApplicationArguments) {
         schedulerScope.launch {
-            logger.info("Worker loop started")
-            var backoffMs = 0L
+            logger.debug("Worker loop started")
 
             while (isActive) {
-                logger.debug("Running publisher...")
-                val publishedAny = try {
-                    withContext(outpostContext) {
-                        publisherService.publishOutboxMessages()
+                val success = try {
+                    advisoryLockService.wrapInSessionLock(OUTBOX_LOCK_ID) {
+                        withContext(outpostContext) {
+                            publisherService.publishOutboxMessages()
+                        }
                     }
                 } catch (ce: CancellationException) {
                     throw ce
                 } catch (t: Throwable) {
                     logger.error("Batch failed; applying backoff", t)
-                    // treat as 0 to avoid hot loop on errors
+                    // treat as false to avoid hot loop on errors
                     false
                 }
-
-                backoffMs = if (publishedAny) 0 else cappedExponential(backoffMs)
-                logger.debug("Delaying for {} ms", backoffMs)
-                delay(backoffMs)
+                cappedExponentialDelay(success)
             }
         }
     }
 
-    private fun cappedExponential(backoffMs: Long): Long {
+    private suspend fun cappedExponentialDelay(publishedAny: Boolean) {
         val jitter = Random.nextLong(0, 100)
-        return min(1000, max(1, backoffMs * 2) + jitter)
+        backoffMs = if (publishedAny) 0 else min(1000, max(1, backoffMs * 2) + jitter)
+        logger.info("Delaying for {} ms", backoffMs)
+        delay(backoffMs)
     }
 }
 

@@ -5,10 +5,10 @@ spring:
 
 logging:
   level:
-    org.jooq: debug
+    org.jooq: off
     org.jooq.Constants: off
 
 outpost:
   enabled: true
-  parallelism: 10
-  batch-size: 100
+  parallelism: 100
+  batch-size: 10000
