@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:54320/postgres
+    username: postgres
+
+logging:
+  level:
+    org.jooq: off
+    org.jooq.Constants: off
+
+outpost:
+  enabled: true
+  parallelism: 100
+  batch-size: 10000
