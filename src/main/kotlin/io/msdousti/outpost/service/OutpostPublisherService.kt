@@ -3,8 +3,8 @@ package io.msdousti.outpost.service
 import io.msdousti.outpost.repo.OutboxMessage
 import io.msdousti.outpost.repo.OutboxRepository
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -28,7 +28,7 @@ class OutboxPublisherService(
         return if (messages.isEmpty())
             false
         else {
-            processOutboxMessages(messages).awaitAll()
+            processOutboxMessages(messages)
             true
         }
     }
@@ -56,9 +56,9 @@ class OutboxPublisherService(
         }
     }
 
-    private suspend fun publishAndMarkAsProcessed(messages: List<OutboxMessage>) = coroutineScope {
+    private suspend fun publishAndMarkAsProcessed(messages: List<OutboxMessage>) {
         messages.forEach { message ->
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
             kafkaPublisher.publish(message)
         }
         // Note: This runs in its own transaction,
