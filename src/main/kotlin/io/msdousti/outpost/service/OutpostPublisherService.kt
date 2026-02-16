@@ -2,10 +2,10 @@ package io.msdousti.outpost.service
 
 import io.msdousti.outpost.repo.OutboxMessage
 import io.msdousti.outpost.repo.OutboxRepository
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -38,14 +38,12 @@ class OutboxPublisherService(
         // For simplicity, we assume the data is uniformly distributed in the groups
         val chunkSize = ceil(groupedMessages.size.toDouble() / parallelism).toInt().coerceAtLeast(1)
 
-        groupedMessages.chunked(chunkSize).map { messageGroups ->
+        groupedMessages.chunked(chunkSize).forEach { messageGroups ->
             val messages = messageGroups.flatten()
-            async {
+            launch {
                 try {
                     logger.debug("Publishing {}", messages)
-                    publishAndMarkAsProcessed(messages).also {
-                        logger.info("Published {} messages", it)
-                    }
+                    publishAndMarkAsProcessed(messages)
                 } catch (ce: CancellationException) {
                     logger.debug("received CancellationException")
                     throw ce
